@@ -1,0 +1,338 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+/* -------------------- Estruturas -------------- */
+
+// Definição da estrutura de dados do Pokémon
+typedef struct pokemon {
+    char nome[50];
+    char elemento[50];
+    int nivel;
+} POKEMON;
+
+// Definição da estrutura do Nó (Lista Duplamente Encadeada)
+typedef struct nodo {
+    POKEMON *pPokemon;      // Ponteiro para a estrutura de dados
+    struct nodo *pProximo;  // Ponteiro para o próximo nó
+    struct nodo *pAnterior; // Ponteiro para o nó anterior
+} NODO;
+
+/* --------- Variáveis globais (Ponteiros da Lista) --------------------- */
+
+NODO *pInicio = NULL;
+NODO *pFim = NULL;
+
+/* --------------- Protótipos de Funções --------- */
+
+void MenuPrincipal(void);
+// Funções da Lista
+NODO *CriaNovoNodo(void);
+void InsereNoFim(NODO *novoNodo);
+void RemovePokemonPorNome(void); // <--- NOVA FUNÇÃO
+void LiberaLista(void);
+// Funções de I/O
+void ColetaDadosPokemon(POKEMON *pPokemon);
+void ListaPokemon(void);
+void SalvaLista(void);
+void CarregaLista(void);
+void Pausa(void);
+
+/* ------------------ Função Principal (Main) -------------- */
+
+int main(void) {
+    CarregaLista();
+    MenuPrincipal();
+    LiberaLista();
+    return 0;
+}
+
+/* -------------------- Menu Principal (Visual Melhorado) ------------------- */
+
+void MenuPrincipal(void) {
+    int opcao = 0;
+    
+    do {
+        system("clear || cls"); 
+        printf("\n#################################################\n");
+        printf("#             🌟 P O K É D E X 🌟             #\n");
+        printf("#################################################\n");
+        printf(" 1. Cadastrar Novo Pokémon\n");
+        printf(" 2. Listar Todos os Pokémons\n");
+        printf(" 3. Remover Pokémon por Nome\n"); // <--- NOVA OPÇÃO
+        printf(" 4. Salvar Lista no Arquivo\n");
+        printf(" 5. Carregar Lista do Arquivo\n");
+        printf(" 6. Sair\n");
+        printf("-------------------------------------------------\n");
+        printf(" Escolha uma opção: ");
+        
+        if (scanf("%d", &opcao) != 1) {
+            opcao = -1;
+        }
+        
+        int c;
+        while ((c = getchar()) != '\n' && c != EOF); // Limpa buffer
+
+        switch (opcao) {
+            case 1:
+                InsereNoFim(CriaNovoNodo()); 
+                Pausa();
+                break;
+            case 2:
+                ListaPokemon();
+                Pausa();
+                break;
+            case 3:
+                RemovePokemonPorNome(); // <--- CHAMADA DA FUNÇÃO
+                Pausa();
+                break;
+            case 4:
+                SalvaLista();
+                Pausa();
+                break;
+            case 5:
+                LiberaLista();
+                CarregaLista(); 
+                Pausa();
+                break;
+            case 6:
+                printf("\n Fim do Pokédex - Até logo!\n");
+                break;
+            default:
+                printf("\n Opção inválida! Pressione ENTER para tentar novamente.\n");
+                Pausa();
+                break;
+        }
+    } while (opcao != 6); // A condição de saída agora é a opção 6
+}
+
+/* ------------------- Funções de Alocação e Inserção -------------------- */
+
+NODO *CriaNovoNodo(void) {
+    NODO *pNodoAtual = (NODO *)malloc(sizeof(NODO));
+    POKEMON *pPokemonAtual = (POKEMON *)malloc(sizeof(POKEMON));
+
+    if (pNodoAtual == NULL || pPokemonAtual == NULL) {
+        printf("\n [ERRO] Memória insuficiente. Cadastro falhou.\n");
+        if (pNodoAtual) free(pNodoAtual);
+        if (pPokemonAtual) free(pPokemonAtual);
+        return NULL;
+    }
+
+    pNodoAtual->pPokemon = pPokemonAtual;
+    pNodoAtual->pProximo = NULL;
+    pNodoAtual->pAnterior = NULL;
+
+    ColetaDadosPokemon(pNodoAtual->pPokemon);
+    
+    return pNodoAtual;
+}
+
+void InsereNoFim(NODO *novoNodo) {
+    if (novoNodo == NULL) {
+        return;
+    }
+    
+    if (pInicio == NULL) {
+        pInicio = novoNodo;
+        pFim = novoNodo;
+        printf("\n✅ Pokémon %s cadastrado com sucesso (Primeiro da lista)!\n", novoNodo->pPokemon->nome);
+    } 
+    else {
+        pFim->pProximo = novoNodo;
+        novoNodo->pAnterior = pFim;
+        pFim = novoNodo;
+        printf("\n✅ Pokémon %s cadastrado com sucesso!\n", novoNodo->pPokemon->nome);
+    }
+}
+
+/* ------------------- Função de Remoção -------------------- */
+
+void RemovePokemonPorNome(void) {
+    char nomeBusca[50];
+    NODO *pAtual = pInicio;
+    
+    if (pInicio == NULL) {
+        printf("\n A lista está vazia. Não há Pokémons para remover.\n");
+        return;
+    }
+
+    printf("\n --- Remover Pokémon ---\n");
+    printf(" Digite o nome do Pokémon a ser removido: ");
+    if (fgets(nomeBusca, sizeof(nomeBusca), stdin) != NULL) {
+        nomeBusca[strcspn(nomeBusca, "\n")] = 0; // Remove '\n'
+    } else {
+        return;
+    }
+
+    // Procura o Pokémon na lista
+    while (pAtual != NULL) {
+        // Compara ignorando a caixa (case-insensitive)
+        if (strcasecmp(pAtual->pPokemon->nome, nomeBusca) == 0) {
+            
+            // 1. O nó a ser removido é o único nó (pInicio == pFim)
+            if (pAtual == pInicio && pAtual == pFim) {
+                pInicio = NULL;
+                pFim = NULL;
+            } 
+            // 2. O nó a ser removido é o pInicio
+            else if (pAtual == pInicio) {
+                pInicio = pAtual->pProximo;
+                pInicio->pAnterior = NULL;
+            } 
+            // 3. O nó a ser removido é o pFim
+            else if (pAtual == pFim) {
+                pFim = pAtual->pAnterior;
+                pFim->pProximo = NULL;
+            } 
+            // 4. O nó a ser removido está no meio
+            else {
+                pAtual->pAnterior->pProximo = pAtual->pProximo;
+                pAtual->pProximo->pAnterior = pAtual->pAnterior;
+            }
+
+            // Libera a memória
+            printf("\n 🔥 Pokémon %s removido com sucesso (Adeus, velhos amigos)! 🔥\n", pAtual->pPokemon->nome);
+            free(pAtual->pPokemon);
+            free(pAtual);
+            return;
+        }
+        pAtual = pAtual->pProximo;
+    }
+
+    printf("\n [AVISO] Pokémon '%s' não encontrado na Pokédex.\n", nomeBusca);
+}
+
+
+/* ------------------- Funções de I/O de Dados -------------------- */
+
+void ColetaDadosPokemon(POKEMON *pPokemon) {
+    system("clear || cls");
+    printf("\n--- Novo Cadastro ---\n");
+    
+    printf(" Nome: ");
+    if (fgets(pPokemon->nome, sizeof(pPokemon->nome), stdin) != NULL) {
+        pPokemon->nome[strcspn(pPokemon->nome, "\n")] = 0; // Remove '\n'
+    }
+
+    printf(" Elemento (Fogo, Água, etc.): ");
+    if (fgets(pPokemon->elemento, sizeof(pPokemon->elemento), stdin) != NULL) {
+        pPokemon->elemento[strcspn(pPokemon->elemento, "\n")] = 0; // Remove '\n'
+    }
+
+    printf(" Nível: ");
+    if (scanf("%d", &(pPokemon->nivel)) != 1) {
+         printf("[AVISO] Nível inválido. Definido para 0.\n");
+         pPokemon->nivel = 0;
+    }
+    
+    int c;
+    while ((c = getchar()) != '\n' && c != EOF); // Limpa buffer
+}
+
+/* -------------------- Funções de Visualização e Persistência ------------------- */
+
+void ListaPokemon(void) {
+    NODO *pAtual = pInicio;
+    
+    system("clear || cls");
+    printf("\n=================================================\n");
+    printf("               📜 LISTA DE POKÉMONS 📜             \n");
+    printf("=================================================\n");
+    
+    if (pInicio == NULL) {
+        printf("\n A Pokédex está vazia. Cadastre o primeiro Pokémon!\n");
+        return;
+    }
+    
+    int contador = 1;
+    while (pAtual != NULL) {
+        printf("\n--- [%03d] - %s ---\n", contador, pAtual->pPokemon->nome);
+        printf(" | Elemento: %s\n", pAtual->pPokemon->elemento);
+        printf(" | Nível:    %d\n", pAtual->pPokemon->nivel);
+        pAtual = pAtual->pProximo;
+        contador++;
+    }
+    printf("-------------------------------------------------\n");
+    printf(" ➡️ Total de Pokémons na Pokédex: %d\n", contador - 1);
+}
+
+void SalvaLista(void) {
+    FILE *arquivo = fopen("pokemons.dat", "wb");
+    if (arquivo == NULL) {
+        printf("\n [ERRO] Não foi possível abrir o arquivo para salvar.\n");
+        return;
+    }
+    
+    NODO *pAtual = pInicio;
+    int totalSalvo = 0;
+    
+    while (pAtual != NULL) {
+        fwrite(pAtual->pPokemon, sizeof(POKEMON), 1, arquivo);
+        pAtual = pAtual->pProximo;
+        totalSalvo++;
+    }
+    
+    fclose(arquivo);
+    printf("\n ✅ Sucesso! %d Pokémons salvos em 'pokemons.dat'.\n", totalSalvo);
+}
+
+void CarregaLista(void) {
+    FILE *arquivo = fopen("pokemons.dat", "rb");
+    if (arquivo == NULL) {
+        printf("\n ⚠️ Arquivo de dados 'pokemons.dat' não encontrado. Iniciando lista vazia.\n");
+        return;
+    }
+    
+    POKEMON tempPokemon;
+    int totalCarregado = 0;
+    
+    while (fread(&tempPokemon, sizeof(POKEMON), 1, arquivo) == 1) {
+        NODO *novoNodo = (NODO *)malloc(sizeof(NODO));
+        POKEMON *pPokemonAtual = (POKEMON *)malloc(sizeof(POKEMON));
+        
+        if (novoNodo == NULL || pPokemonAtual == NULL) {
+            printf("\n [ERRO] Falha de memória durante o carregamento. Interrompido.\n");
+            break;
+        }
+
+        *(pPokemonAtual) = tempPokemon;
+        
+        novoNodo->pPokemon = pPokemonAtual;
+        novoNodo->pProximo = NULL;
+        novoNodo->pAnterior = pFim;
+        
+        if (pInicio == NULL) {
+            pInicio = novoNodo;
+        } else {
+            pFim->pProximo = novoNodo;
+        }
+        pFim = novoNodo;
+        totalCarregado++;
+    }
+    
+    fclose(arquivo);
+    printf("\n ✅ %d Pokémons carregados do arquivo 'pokemons.dat'.\n", totalCarregado);
+}
+
+/* ---------------------- Libera Memória ---------------------------- */
+
+void LiberaLista(void) {
+    NODO *pAtual = pInicio;
+    NODO *pTemp;
+    
+    while (pAtual != NULL) {
+        pTemp = pAtual->pProximo;
+        free(pAtual->pPokemon);
+        free(pAtual);
+        pAtual = pTemp;
+    }
+    
+    pInicio = NULL;
+    pFim = NULL;
+}
+
+void Pausa(void) {
+    printf("\n Pressione ENTER para continuar...");
+    getchar();
+}
